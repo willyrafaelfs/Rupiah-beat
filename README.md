@@ -1,4 +1,4 @@
-# DJ Rupiah Chart
+# Rupiah Beat
 
 ![Vercel](https://img.shields.io/badge/Deploy-Vercel-black)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -23,7 +23,7 @@ A playful audio-reactive web app that turns music into a live "currency chart". 
 
 ## Live Demo
 
-[Live Demo](https://YOUR-PROJECT.vercel.app)
+[Live Demo](https://rupiah-beat.vercel.app/)
 
 ## Getting Started
 
