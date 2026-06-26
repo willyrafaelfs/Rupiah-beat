@@ -11,6 +11,8 @@ A playful audio-reactive web app that turns music into a live "currency chart". 
 - 📈 **Live price chart** — smooth Bezier line drawn frame-by-frame on a pure HTML5 Canvas, with dynamic green/red trend coloring.
 - 🌈 **Spectrum visualizer & ticker** — frequency bars and a glowing Rupiah ticker that flash on every change.
 - 💱 **IDR ⇄ USD converter** — two-way currency inputs with a swap button, kept in sync with the live chart value.
+- 🎵 **Built-in default track** — a bundled MP3 is auto-loaded on page open so you can hit play immediately.
+- ⏩ **Progress bar & seek** — drag the slider to jump to any position in the track, with live time/duration display.
 
 ## Tech Stack
 

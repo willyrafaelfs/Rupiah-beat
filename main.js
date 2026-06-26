@@ -284,11 +284,9 @@ const app = {
   sensitivityEl: null,      // referensi <input id="sensitivity">
   btnPlay: null,            // referensi tombol play/pause
 
-  // Daftar track default. TODO: ganti dengan URL audio royalty-free nyata.
+  // Daftar track default (file lokal).
   defaultTracks: [
-    { name: 'Bensound — Energy', url: 'https://www.youtube.com/watch?v=NBi1Hu9FwPg' },
-    { name: 'Bensound — Dubstep', url: 'https://www.youtube.com/watch?v=NBi1Hu9FwPg' },
-    { name: 'Bensound — Moose', url: 'https://www.youtube.com/watch?v=NBi1Hu9FwPg' }
+    { name: 'Musik', url: 'music.mp3' }
   ],
 
   // Inisialisasi engine, isi dropdown, dan pasang semua event listener.
@@ -321,6 +319,13 @@ const app = {
       selector.appendChild(option);
     });
 
+    // Muat track default pertama secara otomatis.
+    if (this.defaultTracks.length > 0) {
+      const firstTrack = this.defaultTracks[0];
+      selector.value = firstTrack.url;
+      this.audioEngine.loadFromUrl(firstTrack.url);
+    }
+
     // Tombol Play/Pause: toggle status + perbarui label tombol.
     const btnPlay = document.getElementById('btn-play');
     this.btnPlay = btnPlay;
@@ -336,14 +341,53 @@ const app = {
       }
     });
 
-    // Loading state: tampilkan "Loading..." saat audio sedang buffering.
+    // === Progress bar & durasi ===
     const audio = this.audioEngine.audioElement;
+    const progressSlider = document.getElementById('progress');
+    const durationLabel = document.querySelector('.duration');
+
+    // Format detik ke m:ss.
+    const formatTime = (sec) => {
+      if (!isFinite(sec)) return '0:00';
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return m + ':' + String(s).padStart(2, '0');
+    };
+
+    // Update progress slider & label durasi tiap detik.
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration) return;
+      const pct = (audio.currentTime / audio.duration) * 100;
+      progressSlider.value = pct;
+      durationLabel.textContent =
+        formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+    });
+
+    // Seek audio saat user menggeser progress slider.
+    progressSlider.addEventListener('input', () => {
+      if (!audio.duration) return;
+      audio.currentTime = (progressSlider.value / 100) * audio.duration;
+    });
+
+    // Tampilkan durasi total begitu metadata tersedia.
+    audio.addEventListener('loadedmetadata', () => {
+      durationLabel.textContent = '0:00 / ' + formatTime(audio.duration);
+    });
+
+    // Reset saat track habis.
+    audio.addEventListener('ended', () => {
+      this.isPlaying = false;
+      this.updatePlayLabel();
+      cancelAnimationFrame(this.animationId);
+      progressSlider.value = 0;
+    });
+
+    // Loading state: tampilkan "⏳" saat audio sedang buffering.
     const setLoading = (state) => {
       this.isLoading = state;
       this.updatePlayLabel();
     };
     audio.addEventListener('waiting', () => setLoading(true));
-    audio.addEventListener('loadstart', () => setLoading(true));
     audio.addEventListener('canplay', () => setLoading(false));
     audio.addEventListener('playing', () => setLoading(false));
     audio.addEventListener('error', () => setLoading(false));
@@ -352,6 +396,14 @@ const app = {
     selector.addEventListener('change', (e) => {
       if (e.target.value) {
         this.audioEngine.loadFromUrl(e.target.value);
+        // Reset progress & stop jika sedang bermain.
+        if (this.isPlaying) {
+          this.stop();
+          this.isPlaying = false;
+          this.updatePlayLabel();
+        }
+        progressSlider.value = 0;
+        durationLabel.textContent = '0:00';
       }
     });
 
@@ -365,6 +417,13 @@ const app = {
       const file = e.target.files[0];
       if (file) {
         this.audioEngine.loadFromFile(file);
+        if (this.isPlaying) {
+          this.stop();
+          this.isPlaying = false;
+          this.updatePlayLabel();
+        }
+        progressSlider.value = 0;
+        durationLabel.textContent = '0:00';
       }
     });
   },
@@ -372,9 +431,9 @@ const app = {
   // Perbarui label tombol play sesuai status loading/playing.
   updatePlayLabel() {
     if (this.isLoading) {
-      this.btnPlay.textContent = 'Loading...';
+      this.btnPlay.textContent = '⏳';
     } else {
-      this.btnPlay.textContent = this.isPlaying ? '⏸ PAUSE' : '▶ PLAY';
+      this.btnPlay.textContent = this.isPlaying ? '⏸' : '▶';
     }
   },
 
