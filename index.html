@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DJ Rupiah Chart</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-card">
+    <header id="app-header">
+      <p class="equals-label">1 Indonesian Rupiah equals</p>
+      <div id="ticker">Rp 18.000</div>
+      <p class="subtitle">27 Jun 2026 · Live Music Sync</p>
+    </header>
+
+    <section id="converter">
+      <div class="conv-row" id="row-idr">
+        <input type="text" inputmode="numeric" class="conv-input" id="input-idr" value="15.000" aria-label="Jumlah Rupiah">
+        <div class="conv-dropdown">
+          <span>Indonesian Rupiah</span>
+          <span class="caret">▼</span>
+        </div>
+      </div>
+      <button id="btn-swap" type="button" aria-label="Tukar mata uang">⇅</button>
+      <div class="conv-row" id="row-usd">
+        <input type="text" inputmode="decimal" class="conv-input" id="input-usd" value="1" aria-label="Jumlah Dollar">
+        <div class="conv-dropdown">
+          <span>United States Dollar</span>
+          <span class="caret">▼</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="chart-panel">
+      <canvas id="rupiah-chart"></canvas>
+    </section>
+
+    <small class="disclaimer">Simulasi · Bukan data nyata</small>
+
+    <section id="music-panel">
+      <button id="btn-play" type="button">▶</button>
+      <input type="range" id="progress" class="progress" min="0" max="100" value="0" aria-label="Progress lagu">
+      <span class="duration">0:00</span>
+      <select id="track-selector" class="track-select">
+        <option value="">Track</option>
+      </select>
+      <button id="btn-upload" type="button">Upload</button>
+      <input type="file" id="audio-upload" accept="audio/*" hidden>
+    </section>
+
+    <div id="sensitivity-row">
+      <label for="sensitivity">Sensitivity</label>
+      <input type="range" id="sensitivity" min="0.5" max="3" step="0.1" value="1">
+    </div>
+
+    <section id="visualizer-panel">
+      <canvas id="spectrum"></canvas>
+    </section>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
