@@ -128,10 +128,13 @@ class ChartEngine {
       const rect = this.canvas.getBoundingClientRect();
       this.mouseX = e.clientX - rect.left;
       this.mouseY = e.clientY - rect.top;
+      // Redraw frame terakhir saat paused agar tooltip tetap muncul.
+      if (!app.isPlaying) this.redrawStatic();
     });
     this.canvas.addEventListener('mouseleave', () => {
       this.mouseX = -1;
       this.mouseY = -1;
+      if (!app.isPlaying) this.redrawStatic();
     });
   }
 
@@ -227,6 +230,61 @@ class ChartEngine {
     ctx.fill();
 
     // === Hover tooltip ===
+    this.drawTooltip(ctx, canvas, points, prices, lineColor);
+  }
+
+  // Gambar ulang frame terakhir dari data tersimpan (untuk tooltip saat paused).
+  redrawStatic() {
+    if (this.lastPoints.length === 0) return;
+    const ctx = this.ctx;
+    const canvas = this.canvas;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const points = this.lastPoints;
+    const prices = this.lastPrices;
+    const lineColor = this.lastLineColor;
+    const isUp = lineColor === '#ea4335';
+    const gradientTop = isUp ? 'rgba(234,67,53,0.15)' : 'rgba(52,168,83,0.15)';
+
+    // Area gradient.
+    const gradient = ctx.createLinearGradient(0, 12, 0, canvas.height);
+    gradient.addColorStop(0, gradientTop);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.lineTo(0, canvas.height);
+    ctx.closePath();
+    ctx.fillStyle = gradient;
+    ctx.fill();
+
+    // Garis utama.
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length - 1; i++) {
+      const xc = (points[i].x + points[i + 1].x) / 2;
+      const yc = (points[i].y + points[i + 1].y) / 2;
+      ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+    }
+    ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
+    ctx.strokeStyle = lineColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Dot tertinggi.
+    const maxPoint = points.reduce((a, b) => (a.y < b.y ? a : b));
+    ctx.beginPath();
+    ctx.arc(maxPoint.x, maxPoint.y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
+
+    // Tooltip.
     this.drawTooltip(ctx, canvas, points, prices, lineColor);
   }
 
