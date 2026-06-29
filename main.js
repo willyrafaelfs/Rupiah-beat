@@ -495,7 +495,8 @@ const app = {
 
   // Daftar track default (file lokal).
   defaultTracks: [
-    { name: 'Musik', url: 'music.mp3' }
+    { name: 'Musik', url: 'music1.mp3' },
+    { name: 'Musik', url: 'music2.mp3' }
   ],
 
   // Inisialisasi engine, isi dropdown, dan pasang semua event listener.
