@@ -120,6 +120,7 @@ body {
   width: 100%;
   height: 120px;
   background: transparent;
+  cursor: crosshair;
 }
 
 /* ===== Simulasi label ===== */

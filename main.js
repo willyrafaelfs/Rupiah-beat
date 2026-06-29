@@ -96,9 +96,16 @@ class ChartEngine {
     this.previousPrice = 18000;    // harga acuan (bergerak lambat) untuk warna
     this.colorChangeThreshold = 200; // selisih minimum agar warna berganti
     this.lastIsUp = true;          // arah warna terakhir (tahan saat delta kecil)
+
+    // State untuk hover tooltip.
+    this.mouseX = -1;              // posisi X mouse di canvas (-1 = di luar)
+    this.mouseY = -1;
+    this.lastPoints = [];          // koordinat titik frame terakhir [{x, y}, ...]
+    this.lastPrices = [];          // harga per titik frame terakhir
+    this.lastLineColor = '#34a853';
   }
 
-  // Simpan canvas/ctx, set ukuran buffer, dan observasi resize container.
+  // Simpan canvas/ctx, set ukuran buffer, pasang mouse listener, dan observasi resize.
   init(canvasId) {
     this.canvas = document.getElementById(canvasId);
     this.ctx = this.canvas.getContext('2d');
@@ -115,6 +122,17 @@ class ChartEngine {
     } else {
       window.addEventListener('resize', resize);
     }
+
+    // Track posisi mouse untuk tooltip.
+    this.canvas.addEventListener('mousemove', (e) => {
+      const rect = this.canvas.getBoundingClientRect();
+      this.mouseX = e.clientX - rect.left;
+      this.mouseY = e.clientY - rect.top;
+    });
+    this.canvas.addEventListener('mouseleave', () => {
+      this.mouseX = -1;
+      this.mouseY = -1;
+    });
   }
 
   // Render langsung dari data analyser tiap frame (kurva Bezier, tanpa scrolling).
@@ -153,14 +171,22 @@ class ChartEngine {
 
     const lineColor = isUp ? '#ea4335' : '#34a853';
     const gradientTop = isUp ? 'rgba(234,67,53,0.15)' : 'rgba(52,168,83,0.15)';
+    this.lastLineColor = lineColor;
 
-    // Hitung koordinat tiap titik dari smoothedData.
+    // Hitung koordinat tiap titik dari smoothedData + harga per titik.
     const len = this.smoothedData.length;
     const sliceWidth = canvas.width / (len - 1);
-    const points = Array.from(this.smoothedData).map((val, i) => ({
-      x: i * sliceWidth,
-      y: 12 + (canvas.height - 24) - (val / 255) * (canvas.height - 24)
-    }));
+    const points = [];
+    const prices = [];
+    for (let i = 0; i < len; i++) {
+      points.push({
+        x: i * sliceWidth,
+        y: 12 + (canvas.height - 24) - (this.smoothedData[i] / 255) * (canvas.height - 24)
+      });
+      prices.push(10000 + (this.smoothedData[i] / 255) * 15000);
+    }
+    this.lastPoints = points;
+    this.lastPrices = prices;
 
     // Area gradient di bawah garis.
     const gradient = ctx.createLinearGradient(0, 12, 0, canvas.height);
@@ -199,6 +225,118 @@ class ChartEngine {
     ctx.arc(maxPoint.x, maxPoint.y, 4, 0, Math.PI * 2);
     ctx.fillStyle = lineColor;
     ctx.fill();
+
+    // === Hover tooltip ===
+    this.drawTooltip(ctx, canvas, points, prices, lineColor);
+  }
+
+  // Gambar crosshair + tooltip box saat mouse berada di atas canvas.
+  drawTooltip(ctx, canvas, points, prices, lineColor) {
+    if (this.mouseX < 0 || points.length === 0) return;
+
+    // Cari titik terdekat berdasarkan posisi X mouse.
+    let nearest = 0;
+    let minDist = Infinity;
+    for (let i = 0; i < points.length; i++) {
+      const d = Math.abs(points[i].x - this.mouseX);
+      if (d < minDist) {
+        minDist = d;
+        nearest = i;
+      }
+    }
+
+    const pt = points[nearest];
+    const price = prices[nearest];
+
+    // --- Crosshair vertikal ---
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.moveTo(pt.x, 0);
+    ctx.lineTo(pt.x, canvas.height);
+    ctx.strokeStyle = '#9aa0a6';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // --- Dot di posisi titik ---
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = lineColor;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // --- Tooltip box ---
+    const now = new Date();
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                     'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const dateStr = now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+    const timeStr = String(now.getHours()).padStart(2, '0') + ':' +
+                    String(now.getMinutes()).padStart(2, '0') + ':' +
+                    String(now.getSeconds()).padStart(2, '0');
+    const priceStr = 'Rp ' + Math.round(price).toLocaleString('id-ID');
+    const trend = price >= this.basePrice ? '▲ Naik' : '▼ Turun';
+    const diffFromBase = price - this.basePrice;
+    const diffStr = (diffFromBase >= 0 ? '+' : '') +
+                    Math.round(diffFromBase).toLocaleString('id-ID');
+
+    // Ukur teks untuk menentukan lebar tooltip.
+    ctx.font = 'bold 13px Inter, sans-serif';
+    const priceWidth = ctx.measureText(priceStr).width;
+    ctx.font = '11px Inter, sans-serif';
+    const dateWidth = ctx.measureText(dateStr + '  ' + timeStr).width;
+    const trendWidth = ctx.measureText(trend + '  ' + diffStr).width;
+    const boxWidth = Math.max(priceWidth, dateWidth, trendWidth) + 24;
+    const boxHeight = 62;
+    const boxPad = 10;
+
+    // Posisi tooltip: hindari keluar canvas.
+    let bx = pt.x + 12;
+    if (bx + boxWidth > canvas.width) bx = pt.x - boxWidth - 12;
+    let by = pt.y - boxHeight - 8;
+    if (by < 0) by = pt.y + 12;
+
+    // Background tooltip (dark rounded rect).
+    ctx.fillStyle = 'rgba(32, 33, 36, 0.92)';
+    ctx.beginPath();
+    const r = 8;
+    ctx.moveTo(bx + r, by);
+    ctx.lineTo(bx + boxWidth - r, by);
+    ctx.quadraticCurveTo(bx + boxWidth, by, bx + boxWidth, by + r);
+    ctx.lineTo(bx + boxWidth, by + boxHeight - r);
+    ctx.quadraticCurveTo(bx + boxWidth, by + boxHeight, bx + boxWidth - r, by + boxHeight);
+    ctx.lineTo(bx + r, by + boxHeight);
+    ctx.quadraticCurveTo(bx, by + boxHeight, bx, by + boxHeight - r);
+    ctx.lineTo(bx, by + r);
+    ctx.quadraticCurveTo(bx, by, bx + r, by);
+    ctx.closePath();
+    ctx.fill();
+
+    // Border tipis.
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Teks harga (baris 1).
+    ctx.fillStyle = lineColor;
+    ctx.font = 'bold 13px Inter, sans-serif';
+    ctx.fillText(priceStr, bx + boxPad + 2, by + 20);
+
+    // Teks tanggal & waktu (baris 2).
+    ctx.fillStyle = '#9aa0a6';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(dateStr + '  ' + timeStr, bx + boxPad + 2, by + 36);
+
+    // Teks trend & selisih (baris 3).
+    ctx.fillStyle = price >= this.basePrice ? '#ea4335' : '#34a853';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.fillText(trend + '  ' + diffStr, bx + boxPad + 2, by + 52);
+
+    ctx.restore();
   }
 
   // Kembalikan harga simulasi terkini.
