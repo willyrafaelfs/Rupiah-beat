@@ -41,8 +41,8 @@ body {
   transition: color 0.3s ease;
 }
 
-#ticker.flash-up { color: #34a853; }
-#ticker.flash-down { color: #ea4335; }
+#ticker.flash-up { color: #ea4335; }
+#ticker.flash-down { color: #34a853; }
 
 .subtitle {
   font-size: 12px;

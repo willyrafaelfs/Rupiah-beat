@@ -151,8 +151,8 @@ class ChartEngine {
     // previousPrice bergerak lambat agar warna bisa bolak-balik hijau/merah.
     this.previousPrice = this.previousPrice * 0.95 + this.currentPrice * 0.05;
 
-    const lineColor = isUp ? '#34a853' : '#ea4335';
-    const gradientTop = isUp ? 'rgba(52,168,83,0.15)' : 'rgba(234,67,53,0.15)';
+    const lineColor = isUp ? '#ea4335' : '#34a853';
+    const gradientTop = isUp ? 'rgba(234,67,53,0.15)' : 'rgba(52,168,83,0.15)';
 
     // Hitung koordinat tiap titik dari smoothedData.
     const len = this.smoothedData.length;
@@ -254,25 +254,38 @@ function drawSpectrum(canvasId, spectrumData) {
   ctx.shadowBlur = 0;
 }
 
-// Format harga ke "Rp XX.XXX", perbarui #ticker, beri kilatan naik/turun.
-function updateTicker(price) {
+// Format harga ke "Rp XX.XXX", perbarui #ticker & equals-label, beri kilatan naik/turun.
+// ratePerUsd = harga per 1 USD, usdAmount = jumlah USD dari input user.
+function updateTicker(ratePerUsd, usdAmount) {
   const ticker = document.getElementById('ticker');
+  const equalsLabel = document.querySelector('.equals-label');
+
+  // Harga total = rate × jumlah USD yang dimasukkan user.
+  const totalPrice = ratePerUsd * usdAmount;
 
   // Format ribuan dengan pemisah titik ala Rupiah.
-  const formatted = 'Rp ' + Math.round(price).toLocaleString('id-ID');
+  const formatted = 'Rp ' + Math.round(totalPrice).toLocaleString('id-ID');
   ticker.innerHTML = formatted;
+
+  // Update label "X United States Dollar equals".
+  if (equalsLabel) {
+    const label = usdAmount === 1
+      ? '1 United States Dollar equals'
+      : usdAmount + ' United States Dollar equals';
+    equalsLabel.textContent = label;
+  }
 
   // Bandingkan dengan harga terakhir (disimpan pada properti fungsi).
   const previous = updateTicker.lastPrice;
-  if (previous !== undefined && price !== previous) {
-    const flashClass = price > previous ? 'flash-up' : 'flash-down';
+  if (previous !== undefined && totalPrice !== previous) {
+    const flashClass = totalPrice > previous ? 'flash-up' : 'flash-down';
     ticker.classList.add(flashClass);
 
     // Hapus kelas kilatan setelah 300ms.
     setTimeout(() => ticker.classList.remove(flashClass), 300);
   }
 
-  updateTicker.lastPrice = price;
+  updateTicker.lastPrice = totalPrice;
 }
 
 const app = {
@@ -446,7 +459,11 @@ const app = {
     const spectrumData = this.audioEngine.getFullSpectrum();
     this.chartEngine.draw(spectrumData, bassLevel);
     drawSpectrum('spectrum', spectrumData);
-    updateTicker(this.chartEngine.getCurrentPrice());
+
+    // Ambil jumlah USD dari input user untuk mengalikan harga di ticker.
+    const usdInput = document.getElementById('input-usd');
+    const usdAmount = parseFloat(usdInput?.value) || 1;
+    updateTicker(this.chartEngine.getCurrentPrice(), usdAmount);
 
     this.animationId = requestAnimationFrame(() => this.loop());
   },
